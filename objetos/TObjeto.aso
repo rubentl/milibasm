@@ -1,0 +1,251 @@
+;----------------------------- macros de manejo de objetos --------------
+%macro  LocalizarMem	1
+	mov	ebx,%1
+	mov	eax,Memoria
+	call	MemoriaGet
+%endmacro
+
+%macro	LiberarMem	1
+	mov	ebx,%1
+	mov	eax,Memoria
+	call	MemoriaFree
+%endmacro
+	
+%macro	IniciarVMT	2			;dir objeto,dir VMT
+	cmp	dword [%1+TObjeto.VMT],0
+	jne	%%nadadenada
+	mov	dword [%1+TObjeto.VMT],%2.VMT
+%%nadadenada:
+%endmacro
+
+%macro	VCall	3			;dir objeto,Tipo,función
+	mov	esi,dword [%1+%2.VMT]
+	call	dword [esi+VMT%2.%3]
+%endmacro
+
+%macro	ACall	2 			;Tipo,función
+	call	dword [O%1.VMT+VMTT%1.%2]
+%endmacro
+
+;----------------------------opciones de las vistas-------------------
+%assign	Visible		0x01
+%assign VisibleMask     0xfffffffe
+%assign	Foco		0x02
+%assign FocoMask        0xfffffffd
+
+;-----------------------------tipos de objetos------------------------
+%assign idObjeto	0x0
+%assign idRect		0x1
+%assign idVista		0x2
+%assign idTexto		0x3
+%assign idVentana	0x4
+%assign idMarco		0x5
+%assign idAplicacion  	0x6
+%assign idGrupo		0x7
+%assign idMenu		0x8
+%assign idMenuGrupo	0x9
+%assign idMenuElemento	0xa
+
+;---------------------------- máscara de eventos ------------------------ 
+%assign	evTodos	0x0
+
+;---------------------------- Posiciones de las paletas------------------
+%assign palNormal	0x0
+%assign	palResaltado	0x1
+%assign palEspecial	0x2
+%assign	palError	0x3
+%assign	palAplicacion	0
+%assign palDialogo	(palAplicacion+4)
+%assign palVentana	(palDialogo+4)
+%assign palMenu		(palVentana+4)
+
+;---------------------------- Constantes de dibujo ----------------------
+%assign	SD	0
+%assign HO	1
+%assign VE	2
+%assign SI	3
+%assign ID	4
+%assign II	5
+
+%assign Simple	1
+%assign Doble	2
+
+;---------------------------- declaraciones de objetos ------------------
+%macro 	Objeto 0
+.anterior:	resd	1
+.siguiente:	resd	1
+.id:	resd	1
+.VMT:	resd	1
+%endmacro
+struc	TObjeto
+Objeto
+endstruc
+;-----------------------------[ Rect ]------------------------------------
+%macro Rect 0
+Objeto
+.ty:	resb	1
+.tx:	resb	1
+.y:	resb	1
+.x:	resb	1
+.padre	resd	1
+%endmacro
+struc	TRect
+Rect
+endstruc
+%macro 	VMTRect 0
+.Done:		resd	1
+.Asignar:	resd	1
+.Copiar:	resd	1
+.Dentro:	resd	1
+%endmacro
+struc	VMTTRect
+VMTRect
+endstruc	
+;-----------------------------[ Vista ]-------------------------------------
+%macro 	Vista 0
+Rect
+.paleta:	resd	1
+.opciones:	resd	1
+.eventos:	resw	1
+.ayuda:		resw	1
+%endmacro
+struc	TVista
+Vista
+endstruc
+%macro 	VMTVista 0
+VMTRect
+.Dibujar:	resd	1
+.DameColor:	resd	1
+.Ejecutar:	resd	1
+.MoverFrase:	resd	1
+.MoverCaracter:	resd	1
+%endmacro
+struc	VMTTVista
+VMTVista
+endstruc
+;---------------------------------[ Texto ]--------------------------------
+%macro	Texto	0
+Vista
+.texto:	resd	1
+.lugar:	resb	1
+.caracter:	resb	1
+%endmacro
+struc	TTexto
+Texto
+endstruc
+%macro	VMTTexto 0
+VMTVista
+.CopiarStr:	resd	1
+.AnalizarStr:	resd	1
+%endmacro
+struc	VMTTTexto
+VMTTexto
+endstruc
+;---------------------------------[ Grupo ]--------------------------------
+%macro	Grupo 0
+Vista
+.hijos:		resb	TLista_size
+%endmacro
+struc	TGrupo
+Grupo
+endstruc
+%macro  VMTGrupo 0
+VMTVista
+.Insertar:	resd	1
+.Eliminar:	resd	1
+.Liberar:	resd	1
+.PorCadaUno:	resd	1
+.ElPrimeroQue:	resd	1
+%endmacro
+struc	VMTTGrupo
+VMTGrupo
+endstruc
+;-----------------------------------[ Aplicacion ]-------------------------
+%macro	Aplicacion 0
+Grupo
+.maxY:	resb	1
+.maxX:	resb	1
+.terminal:	resb	termios_size	
+.handle:	resd	1
+.dirpaleta:	resd	1
+.buffer:	resd	1
+.longitud:	resd	1
+%endmacro
+struc	TAplicacion
+Aplicacion
+endstruc
+%macro 	VMTAplicacion 0
+VMTGrupo
+.Volcado:		resd	1
+.IniciarPantalla:	resd	1
+.TerminarPantalla:	resd	1
+%endmacro
+struc	VMTTAplicacion
+VMTAplicacion
+endstruc
+;-----------------------------------[ Ventana ]----------------------------
+%macro	Ventana 0
+Grupo
+.titulo:	resd	1
+.marco:		resd	1
+%endmacro
+struc	TVentana
+Ventana
+endstruc
+%macro	VMTVentana 0
+VMTGrupo
+.InsertarTitulo:	resd	1
+.InsertarMarco:		resd	1
+%endmacro
+struc	VMTTVentana 
+VMTVentana
+endstruc
+;---------------------------------[ Marco ]---------------------------
+%macro Marco 0
+Vista
+.tipo:	resb	1
+%endmacro
+struc	TMarco
+Marco
+endstruc
+%macro	VMTMarco 0
+VMTVista
+.HacerSimple:	resd	1
+.HacerDoble:	resd	1
+%endmacro
+struc	VMTTMarco
+VMTMarco
+endstruc
+;---------------------------------[ Menú ]----------------------------------- 
+%macro	Menu	0
+Ventana
+%endmacro
+struc	TMenu
+Menu
+endstruc
+struc	VMTTMenu
+VMTVentana
+endstruc
+;---------------------------------[ MenúGrupo ]------------------------------- 
+%macro	MenuGrupo 0
+Ventana
+.tecla:	resd	1
+%endmacro
+struc	TMenuGrupo
+MenuGrupo
+endstruc
+struc	VMTTMenuGrupo
+VMTVentana
+endstruc
+;---------------------------------[MenúElemento]-------------------------------
+%macro MenuElemento 0
+Texto
+.tecla:	  resd	1
+.comando: resd	1
+%endmacro
+struc	TMenuElemento
+MenuElemento
+endstruc
+struc	VMTTMEnuElemento
+VMTTexto
+endstruc
